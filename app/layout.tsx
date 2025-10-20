@@ -1,0 +1,58 @@
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Jyoti Prakash Mohanta | Full Stack AI Developer",
+  description:
+    "Resume and portfolio for Jyoti Prakash Mohanta, a full stack AI developer building end-to-end intelligent products across web, backend, and agentic AI.",
+  keywords: [
+    "Jyoti Prakash Mohanta",
+    "Full Stack AI Developer",
+    "Generative AI Engineer",
+    "Next.js Developer",
+    "LangChain",
+    "Portfolio",
+    "Resume",
+  ],
+  openGraph: {
+    title: "Jyoti Prakash Mohanta | Full Stack AI Developer",
+    description:
+      "Explore projects, experience, and credentials from Jyoti Prakash Mohanta, a developer delivering AI-powered applications and platform integrations.",
+    url: "https://jyotiprakash.dev",
+    siteName: "Jyoti Prakash Mohanta Portfolio",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Jyoti Prakash Mohanta | Full Stack AI Developer",
+    description:
+      "Explore projects, experience, and credentials from Jyoti Prakash Mohanta, a developer delivering AI-powered applications and platform integrations.",
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
+      </body>
+    </html>
+  );
+}
