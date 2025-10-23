@@ -29,15 +29,24 @@ export const metadata: Metadata = {
     title: "Jyoti Prakash Mohanta | Full Stack AI Developer",
     description:
       "Explore projects, experience, and credentials from Jyoti Prakash Mohanta, a developer delivering AI-powered applications and platform integrations.",
-    url: "https://jyotiprakash.dev",
+    url: "https://jyoti-prakash-mohanta.vercel.app",
     siteName: "Jyoti Prakash Mohanta Portfolio",
     type: "website",
+    images: [
+      {
+        url: "/jpm.png",
+        width: 1200,
+        height: 630,
+        alt: "Jyoti Prakash Mohanta - Full Stack AI Developer",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Jyoti Prakash Mohanta | Full Stack AI Developer",
     description:
       "Explore projects, experience, and credentials from Jyoti Prakash Mohanta, a developer delivering AI-powered applications and platform integrations.",
+    images: ["/jpm.png"],
   },
 };
 
