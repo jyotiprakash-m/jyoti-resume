@@ -698,7 +698,7 @@ export default function Home() {
       <button
         type="button"
         onClick={() => setChatOpen((previous) => !previous)}
-        className="fixed bottom-8 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#ff6a3d]/40 bg-[#ff6a3d] text-slate-950 shadow-[0_0_35px_rgba(255,106,61,0.45)] transition hover:bg-[#ff815b] md:right-10"
+        className="fixed bottom-8 right-6 sm:right-0 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#ff6a3d]/40 bg-[#ff6a3d] text-slate-950 shadow-[0_0_35px_rgba(255,106,61,0.45)] transition hover:bg-[#ff815b] md:right-10"
         aria-label={chatOpen ? "Close chat" : "Open chat"}
       >
         {chatOpen ? (
