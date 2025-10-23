@@ -720,10 +720,14 @@ export default function Home() {
             onClick={() => setChatOpen(false)}
             className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] md:bg-black/20"
           />
-          <div className="fixed bottom-24 right-6 sm:right-0 z-40 h-[560px] w-[clamp(360px,40vw,520px)] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0f172a]/95 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.65)] md:right-10">
+          <div
+            className="fixed bottom-24 left-4 right-4 z-40 h-[560px] max-w-[520px] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0f172a]/95 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.65)]
+                       md:right-10 md:left-auto md:w-[clamp(360px,40vw,520px)]"
+          >
             <ChatWindow onClose={() => setChatOpen(false)} />
           </div>
         </>
+        
       ) : null}
 
       <footer className="border-t border-white/5 bg-black/40">
