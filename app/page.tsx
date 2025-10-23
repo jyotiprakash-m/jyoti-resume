@@ -698,7 +698,7 @@ export default function Home() {
       <button
         type="button"
         onClick={() => setChatOpen((previous) => !previous)}
-        className="fixed bottom-8 right-6 sm:right-0 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#ff6a3d]/40 bg-[#ff6a3d] text-slate-950 shadow-[0_0_35px_rgba(255,106,61,0.45)] transition hover:bg-[#ff815b] md:right-10"
+        className="fixed bottom-8 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#ff6a3d]/40 bg-[#ff6a3d] text-slate-950 shadow-[0_0_35px_rgba(255,106,61,0.45)] transition hover:bg-[#ff815b] md:right-10"
         aria-label={chatOpen ? "Close chat" : "Open chat"}
       >
         {chatOpen ? (
@@ -720,7 +720,7 @@ export default function Home() {
             onClick={() => setChatOpen(false)}
             className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] md:bg-black/20"
           />
-          <div className="fixed bottom-24 right-6 z-40 h-[560px] w-[clamp(360px,40vw,520px)] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0f172a]/95 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.65)] md:right-10">
+          <div className="fixed bottom-24 right-6 sm:right-0 z-40 h-[560px] w-[clamp(360px,40vw,520px)] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0f172a]/95 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.65)] md:right-10">
             <ChatWindow onClose={() => setChatOpen(false)} />
           </div>
         </>
