@@ -25,6 +25,11 @@ export const metadata: Metadata = {
     "Portfolio",
     "Resume",
   ],
+  icons: {
+    icon: "/jpm.png",
+    shortcut: "/jpm.png",
+    apple: "/jpm.png",
+  },
   openGraph: {
     title: "Jyoti Prakash Mohanta | Full Stack AI Developer",
     description:
@@ -32,6 +37,7 @@ export const metadata: Metadata = {
     url: "https://jyoti-prakash-mohanta.vercel.app",
     siteName: "Jyoti Prakash Mohanta Portfolio",
     type: "website",
+
     images: [
       {
         url: "/jpm.png",
