@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import ChatWindow from "../components/ChatWindow";
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const navLinks = [
     { label: "About", href: "#about" },
@@ -691,6 +693,38 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* Floating chat action and modal entrypoint */}
+      <button
+        type="button"
+        onClick={() => setChatOpen((previous) => !previous)}
+        className="fixed bottom-8 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#ff6a3d]/40 bg-[#ff6a3d] text-slate-950 shadow-[0_0_35px_rgba(255,106,61,0.45)] transition hover:bg-[#ff815b] md:right-10"
+        aria-label={chatOpen ? "Close chat" : "Open chat"}
+      >
+        {chatOpen ? (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h10a4 4 0 014 4v4a4 4 0 01-4 4H9l-5 5v-5H7a4 4 0 01-4-4V11a4 4 0 014-4z" />
+          </svg>
+        )}
+      </button>
+
+      {chatOpen ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close chat"
+            onClick={() => setChatOpen(false)}
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] md:bg-black/20"
+          />
+          <div className="fixed bottom-24 right-6 z-40 h-[560px] w-[clamp(360px,40vw,520px)] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0f172a]/95 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.65)] md:right-10">
+            <ChatWindow onClose={() => setChatOpen(false)} />
+          </div>
+        </>
+      ) : null}
 
       <footer className="border-t border-white/5 bg-black/40">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
