@@ -168,7 +168,7 @@ export default function DeepResearchPage() {
               <div
                 className={`grid grid-cols-1 md:grid-cols-5 gap-6 transition-all duration-300 ease-in-out ${
                   showAdvanced
-                    ? "opacity-100 max-h-96"
+                    ? "opacity-100"
                     : "opacity-0 max-h-0 overflow-hidden"
                 }`}
               >
