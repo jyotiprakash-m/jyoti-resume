@@ -130,14 +130,14 @@ export default function PatientsPage() {
         <div className="rounded-2xl border border-white/10 bg-black/40 p-8 shadow-2xl backdrop-blur-xl">
           <header className="mb-8 space-y-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-gray-400">
-              Healthcare Management
+              Healthcare Agent
             </span>
             <h1 className="text-4xl font-bold bg-linear-to-r from-[#ff6a3d] via-[#ff8c61] to-[#ffa785] bg-clip-text text-transparent">
-              Patients Management System
+              Agentic Pathology
             </h1>
             <p className="text-sm text-gray-400 md:text-base">
-              Comprehensive patient management with registration, filtering, and
-              bulk operations.
+              Seamlessly handle patient data while simplifying the scheduling
+              and publishing of pathology reports.
             </p>
           </header>
 
