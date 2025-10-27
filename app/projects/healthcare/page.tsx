@@ -13,7 +13,16 @@ interface Patient {
   registration_date: string;
 }
 
-// API endpoint - update this to your backend URL
+interface Doctor {
+  id?: number;
+  name: string;
+  specialist: string;
+  hospital: string;
+  contact_no: string;
+  email: string;
+  education: string;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL_CHUNKING || "http://localhost:8000";
 
@@ -24,6 +33,7 @@ export default function PatientsPage() {
   const [filterName, setFilterName] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showDoctorsModal, setShowDoctorsModal] = useState(false);
   const [newPatient, setNewPatient] = useState<Patient>({
     registration_no: "",
     name: "",
@@ -32,9 +42,15 @@ export default function PatientsPage() {
     email: "",
     registration_date: "",
   });
-  const [bulkPatients, setBulkPatients] = useState<string>(""); // JSON string for array
+  const [bulkPatients, setBulkPatients] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Doctors modal state
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
+  const [doctorSpecialist, setDoctorSpecialist] = useState("");
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
 
   // Fetch patients from API
   const fetchPatients = async (name?: string) => {
@@ -90,7 +106,7 @@ export default function PatientsPage() {
         email: "",
         registration_date: "",
       });
-      fetchPatients(filterName); // Refresh list
+      fetchPatients(filterName);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -116,12 +132,50 @@ export default function PatientsPage() {
       if (!response.ok) throw new Error("Failed to bulk upload patients");
       setShowBulkModal(false);
       setBulkPatients("");
-      fetchPatients(filterName); // Refresh list
+      fetchPatients(filterName);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fetch doctors for modal
+  const fetchDoctors = async (specialist?: string) => {
+    setLoadingDoctors(true);
+    try {
+      const url = specialist
+        ? `${API_BASE_URL}/healthcare/doctors/?specialist=${encodeURIComponent(
+            specialist
+          )}`
+        : `${API_BASE_URL}/healthcare/doctors/`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch doctors");
+      const data: Doctor[] = await response.json();
+      setDoctors(data);
+      setFilteredDoctors(data);
+    } catch {
+      setDoctors([]);
+      setFilteredDoctors([]);
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
+  // Open doctors modal and fetch doctors
+  const handleOpenDoctorsModal = () => {
+    setShowDoctorsModal(true);
+    setDoctorSpecialist("");
+    fetchDoctors();
+  };
+
+  // Handle doctor specialist filter
+  const handleDoctorSpecialistChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setDoctorSpecialist(value);
+    fetchDoctors(value);
   };
 
   return (
@@ -137,7 +191,7 @@ export default function PatientsPage() {
             </h1>
             <p className="text-sm text-gray-400 md:text-base">
               Seamlessly handle patient data while simplifying the scheduling
-              and publishing of pathology reports.
+              and publishing of pathology reports. and bulk operations.
             </p>
           </header>
 
@@ -163,7 +217,7 @@ export default function PatientsPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4">
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex-1 bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] text-black py-2 px-4 rounded-lg font-medium hover:shadow-lg hover:shadow-[#38bdf8]/50 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
@@ -175,6 +229,12 @@ export default function PatientsPage() {
                 className="flex-1 bg-linear-to-r from-[#2dd4bf] to-[#14b8a6] text-black py-2 px-4 rounded-lg font-medium hover:shadow-lg hover:shadow-[#2dd4bf]/50 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
               >
                 📤 Bulk Upload
+              </button>
+              <button
+                onClick={handleOpenDoctorsModal}
+                className="flex-1 bg-linear-to-r from-[#c084fc] to-[#a21caf] text-white py-2 px-4 rounded-lg font-medium hover:shadow-lg hover:shadow-[#c084fc]/50 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+              >
+                🩺 Doctors
               </button>
             </div>
 
@@ -493,6 +553,114 @@ export default function PatientsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Doctors Modal */}
+      {showDoctorsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4 z-50">
+          <div className="bg-black/90 border border-white/10 rounded-2xl p-8 w-full max-w-6xl shadow-2xl">
+            <h2 className="text-2xl font-bold bg-linear-to-r from-[#c084fc] to-[#a21caf] bg-clip-text text-transparent mb-6">
+              Doctors List
+            </h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Filter by Specialist
+              </label>
+              <input
+                type="text"
+                placeholder="Search by specialist..."
+                value={doctorSpecialist}
+                onChange={handleDoctorSpecialistChange}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:border-[#c084fc] focus:outline-none focus:ring-2 focus:ring-[#c084fc]/30"
+              />
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 overflow-x-auto max-h-96">
+              {loadingDoctors ? (
+                <div className="p-8 text-center text-gray-400">
+                  Loading doctors...
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-white/5">
+                    <tr>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        ID
+                      </th>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Name
+                      </th>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Specialist
+                      </th>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Hospital
+                      </th>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Contact No
+                      </th>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Email
+                      </th>
+                      <th className="border-b border-white/10 px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Education
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDoctors.length > 0 ? (
+                      filteredDoctors.map((doctor) => (
+                        <tr
+                          key={doctor.id}
+                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                        >
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {doctor.id}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-white font-medium">
+                            {doctor.name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {doctor.specialist}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {doctor.hospital}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {doctor.contact_no}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {doctor.email}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {doctor.education}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-4 py-8 text-center text-gray-400"
+                        >
+                          No doctors found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="flex justify-end pt-6">
+              <button
+                type="button"
+                onClick={() => setShowDoctorsModal(false)}
+                className="px-6 py-3 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 transition-all duration-200"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
