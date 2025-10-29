@@ -20,22 +20,28 @@ const API_URL =
 
 export default function ProjectsPage() {
   const router = useRouter();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, string[]>>(
     {}
   );
   const [message, setMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("");
 
   useEffect(() => {
     fetchProjects();
     // eslint-disable-next-line
   }, []);
 
-  async function fetchProjects() {
+  async function fetchProjects(filterName?: string) {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/projects`);
+      let url = `${API_URL}/projects`;
+      if (filterName && filterName.trim()) {
+        url += `?project_name=${encodeURIComponent(filterName.trim())}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch projects");
       const data: Project[] = await res.json();
       setProjects(data);
@@ -94,21 +100,41 @@ export default function ProjectsPage() {
           </p>
         </header>
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push("/projects/engineering-team/process")}
-            className="flex items-center gap-2 rounded-lg bg-linear-to-r from-[#ff6a3d] to-[#ff8c61] px-4 py-2 text-white font-medium shadow hover:shadow-[#ff6a3d]/40 transition-all duration-200"
-          >
-            ➕ New Project
-          </button>
-          <button
-            onClick={fetchProjects}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-lg bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] px-4 py-2 text-white font-medium shadow hover:shadow-[#38bdf8]/40 transition-all duration-200 disabled:opacity-60"
-          >
-            <FiRefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            <button
+              onClick={() => router.push("/projects/engineering-team/process")}
+              className="flex items-center gap-2 rounded-lg bg-linear-to-r from-[#ff6a3d] to-[#ff8c61] px-4 py-2 text-white font-medium shadow hover:shadow-[#ff6a3d]/40 transition-all duration-200"
+            >
+              ➕ New Project
+            </button>
+            <button
+              onClick={() => fetchProjects(filter)}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-lg bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] px-4 py-2 text-white font-medium shadow hover:shadow-[#38bdf8]/40 transition-all duration-200 disabled:opacity-60"
+            >
+              <FiRefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter by project name..."
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/30 min-w-[200px]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") fetchProjects(e.currentTarget.value);
+              }}
+            />
+            <button
+              onClick={() => fetchProjects(filter)}
+              className="rounded-lg bg-linear-to-r from-[#2dd4bf] to-[#14b8a6] px-3 py-2 text-white text-sm font-medium hover:shadow-lg hover:shadow-[#2dd4bf]/40 transition-all duration-200"
+            >
+              Filter
+            </button>
+          </div>
           {message && <span className="text-red-400 text-sm">{message}</span>}
         </div>
 

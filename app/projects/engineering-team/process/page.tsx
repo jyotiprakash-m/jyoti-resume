@@ -89,9 +89,12 @@ function RunEngineeringPageContent() {
 
   // Fetch zip url for a project
   async function fetchZipUrl(project_name: string) {
-    await fetch(`${API_URL}/zip-project/${encodeURIComponent(project_name)}`, {
-      method: "POST",
-    });
+    await fetch(
+      `${API_URL}/core/zip-project/${encodeURIComponent(project_name)}`,
+      {
+        method: "POST",
+      }
+    );
     setZipUrl(
       `${API_URL}/public/${encodeURIComponent(
         project_name
