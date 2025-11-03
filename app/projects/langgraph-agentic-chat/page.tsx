@@ -60,6 +60,7 @@ export default function ChatPage() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [users, setUsers] = useState([]);
@@ -412,6 +413,11 @@ export default function ChatPage() {
     setRegisterPassword("");
     setAuthError("");
   };
+
+  // Scroll to bottom on new message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Show login page if not authenticated
   if (!isAuthenticated) {
@@ -845,6 +851,7 @@ export default function ChatPage() {
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
         {/* Input bar */}
