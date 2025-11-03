@@ -2,7 +2,39 @@
 
 import React, { useState, useRef, useEffect } from "react";
 
-type Message = { role: string; content: string };
+type ToolCall = {
+  name: string;
+  args: Record<string, any>;
+  id: string;
+  type: string;
+};
+
+type Message = {
+  id?: string;
+  role?: string; // "ai" | "human" | "user" | "system" | etc.
+  type?: string;
+  name?: string | null;
+  content: string;
+  additional_kwargs?: {
+    refusal?: any;
+    [key: string]: any;
+  };
+  response_metadata?: {
+    token_usage?: any;
+    model_provider?: string;
+    model_name?: string;
+    system_fingerprint?: string;
+    id?: string;
+    service_tier?: string;
+    finish_reason?: string;
+    logprobs?: any;
+    [key: string]: any;
+  };
+  tool_calls?: ToolCall[];
+  invalid_tool_calls?: ToolCall[];
+  usage_metadata?: any;
+  _showMeta?: boolean; // For toggling metadata display
+};
 type Thread = { id: string; label: string };
 
 // API endpoint - update this to your backend URL
@@ -261,6 +293,8 @@ export default function ChatPage() {
           (data.messages || []).map((msg: any) => ({
             role: msg.type || msg.role || "ai",
             content: msg.content,
+            response_metadata: msg.response_metadata || {},
+            tool_calls: msg.tool_calls || [],
           }))
         );
       })
@@ -727,17 +761,88 @@ export default function ChatPage() {
               <div
                 key={idx}
                 className={`flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
+                  msg.role === "human" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
-                  className={`rounded-xl px-5 py-3 max-w-[70%] font-sans text-base shadow-lg whitespace-pre-line ${
-                    msg.role === "user"
-                      ? "bg-[#23232a] text-white border border-[#38bdf8]/30"
-                      : "bg-[#18181b] text-gray-100 border border-white/10"
+                  key={idx}
+                  className={`flex ${
+                    msg.role === "human" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {msg.content}
+                  <div
+                    className={`rounded-xl px-5 py-3 max-w-[70%] font-sans text-base shadow-lg whitespace-pre-line ${
+                      msg.role === "human"
+                        ? "bg-[#23232a] text-white border border-[#38bdf8]/30"
+                        : "bg-[#18181b] text-gray-100 border border-white/10"
+                    }`}
+                  >
+                    {msg.content}
+                    {msg?.tool_calls && msg.tool_calls?.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-400 bg-[#23232a] rounded p-2 max-w-xs overflow-x-auto">
+                        <p>Tools Call:</p>
+                        <pre className="whitespace-pre-wrap break-all">
+                          {JSON.stringify(msg.tool_calls, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                  {/* Metadata info icon for AI messages */}
+                  {msg.role === "ai" && msg?.response_metadata && (
+                    <div className="ml-2">
+                      <button
+                        type="button"
+                        className="text-gray-400 hover:text-white focus:outline-none"
+                        title="Show metadata"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Toggle metadata display for this message
+                          setMessages((prev) =>
+                            prev.map((m, i) =>
+                              i === idx
+                                ? {
+                                    ...m,
+                                    _showMeta: !m._showMeta,
+                                  }
+                                : m
+                            )
+                          );
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 16v-4m0-4h.01"
+                          />
+                        </svg>
+                      </button>
+                      {/* Show metadata if toggled */}
+                      {msg._showMeta && (
+                        <div className="mt-2 text-xs text-gray-400 bg-[#23232a] rounded p-2 max-w-xs overflow-x-auto">
+                          <pre className="whitespace-pre-wrap break-all">
+                            {JSON.stringify(msg.response_metadata, null, 2)}
+                          </pre>
+                          {msg?.tool_calls && msg.tool_calls?.length > 0 && (
+                            <>
+                              <p>Tools:</p>
+                              <pre className="whitespace-pre-wrap break-all">
+                                {JSON.stringify(msg.tool_calls, null, 2)}
+                              </pre>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
