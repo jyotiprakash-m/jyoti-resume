@@ -17,6 +17,7 @@ export default function ChatPage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
+  const [isSuggestedPrompts, setIsSuggestedPrompts] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -27,6 +28,11 @@ export default function ChatPage() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+
+  const [newPassword, setNewPassword] = useState("");
 
   // Example prompts as a JSON array
   const examplePrompts = [
@@ -41,6 +47,44 @@ export default function ChatPage() {
     {
       label: "Write a TypeScript function to reverse a string.",
       value: "Write a TypeScript function to reverse a string.",
+    },
+    {
+      label: "Search for the latest news about artificial intelligence.",
+      value: "Search for the latest news about artificial intelligence.",
+    },
+    {
+      label: "Extract text from the uploaded file.",
+      value: "Extract text from the uploaded file.",
+    },
+    {
+      label: "Send a push notification saying 'Meeting at 3 PM'.",
+      value: "Send a push notification saying 'Meeting at 3 PM'.",
+    },
+    {
+      label: "Get a public link for the file 'report.pdf'.",
+      value: "Get a public link for the file 'report.pdf'.",
+    },
+    {
+      label: "Save the following content as a PDF: 'This is my summary.'",
+      value: "Save the following content as a PDF: 'This is my summary.'",
+    },
+    {
+      label: "Send a message to Telegram: 'Hello from the agent!'",
+      value: "Send a message to Telegram: 'Hello from the agent!'",
+    },
+    {
+      label:
+        "Send a WhatsApp message to +911234567890 saying 'Hi, this is a test.'",
+      value:
+        "Send a WhatsApp message to +911234567890 saying 'Hi, this is a test.'",
+    },
+    {
+      label: "What is the integral of x^2?",
+      value: "What is the integral of x^2?",
+    },
+    {
+      label: "Get a summary of the Wikipedia article on 'Machine Learning'.",
+      value: "Get a summary of the Wikipedia article on 'Machine Learning'.",
     },
   ];
 
@@ -91,6 +135,55 @@ export default function ChatPage() {
       setAuthError("Network error. Please try again.");
     } finally {
       setAuthLoading(false);
+    }
+  };
+  // Add this function after handleLogout
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${API_URL}/users/`);
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      } else {
+        console.error("Failed to fetch users");
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  // Add this function after handleLogout
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users/${username}/password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          password: newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        setNewPassword("");
+        setAuthError("Password changed successfully!");
+
+        // Delete the local storage username to force re-login
+        setTimeout(() => {
+          localStorage.removeItem("username");
+          setIsAuthenticated(false);
+          setIsPasswordChangeOpen(false);
+        }, 1000);
+      } else {
+        const errorData = await response.json();
+        setAuthError(errorData.message || "Failed to change password");
+      }
+    } catch (error) {
+      setAuthError("Network error. Please try again.");
     }
   };
 
@@ -217,13 +310,32 @@ export default function ChatPage() {
     setMessages([]);
   };
 
-  const handleDeleteThread = (threadId: string) => {
-    setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    if (selectedThread && selectedThread.id === threadId) {
-      setSelectedThread(threads.length > 1 ? threads[1] : null);
-      setMessages([]);
+  const handleDeleteThread = async (threadId: string) => {
+    const threadToDelete = threads.find((t) => t.id === threadId);
+    if (!threadToDelete) return;
+
+    try {
+      const response = await fetch(
+        `${API_URL}/agent/thread/${username}/${threadToDelete.label}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (response.ok) {
+        setThreads((prev) => prev.filter((t) => t.id !== threadId));
+        if (selectedThread && selectedThread.id === threadId) {
+          setSelectedThread(threads.length > 1 ? threads[1] : null);
+          setMessages([]);
+        }
+      } else {
+        console.error("Failed to delete thread");
+        // Optionally, show an error message to the user
+      }
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      // Optionally, show an error message to the user
     }
-    // Optionally, call a backend endpoint to delete thread data
   };
 
   // Logout - delete from local storage
@@ -247,7 +359,110 @@ export default function ChatPage() {
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen bg-[#131314] items-center justify-center">
-        {/* Setting button icon -> model to show all user from database and we will  */}
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={() => {
+              setIsUsersModalOpen(true);
+              fetchUsers();
+            }}
+            className="p-2 rounded-lg hover:bg-[#23232a] transition text-gray-400 hover:text-white"
+            title="Users"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+
+          {/* Users Modal */}
+          {isUsersModalOpen && (
+            <>
+              <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                onClick={() => setIsUsersModalOpen(false)}
+              ></div>
+              {/* Modal */}
+              <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl z-50">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                  <h2 className="text-xl font-bold text-white">All Users</h2>
+                  <button
+                    onClick={() => setIsUsersModalOpen(false)}
+                    className="p-2 rounded-lg hover:bg-[#23232a] transition text-gray-400 hover:text-white"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 max-h-96 overflow-y-auto">
+                  {users.length === 0 ? (
+                    <div className="text-center text-gray-400">
+                      No users found
+                    </div>
+                  ) : (
+                    <table className="min-w-full text-left text-sm text-gray-400">
+                      <thead>
+                        <tr>
+                          <th className="px-4 py-2 font-semibold text-white">
+                            ID
+                          </th>
+                          <th className="px-4 py-2 font-semibold text-white">
+                            Full Name
+                          </th>
+                          <th className="px-4 py-2 font-semibold text-white">
+                            Username
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map((user: any) => (
+                          <tr
+                            key={user.id}
+                            className="bg-[#23232a] border-b border-white/10"
+                          >
+                            <td className="px-4 py-2 text-xs">{user.id}</td>
+                            <td className="px-4 py-2">{user.full_name}</td>
+                            <td className="px-4 py-2">@{user.username}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
         <div className="w-full max-w-md bg-[#1a1a1a] rounded-2xl shadow-2xl p-8 border border-white/10">
           <h1 className="text-3xl font-bold text-white mb-2">
             Welcome to Agenta
@@ -284,7 +499,7 @@ export default function ChatPage() {
               </div>
 
               {authError && (
-                <div className="text-red-400 text-sm">{authError}</div>
+                <div className="text-[#ff8c61] text-sm">{authError}</div>
               )}
 
               <button
@@ -397,37 +612,39 @@ export default function ChatPage() {
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 py-4">
-          <div className="text-xs text-gray-400 mb-2 pl-2">Projects</div>
-          {threads.map((thread) => (
-            <div
-              key={thread.id}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer mb-1 transition-all duration-150 ${
-                selectedThread && selectedThread.id === thread.id
-                  ? "bg-[#23232a] text-white border border-[#38bdf8]/30"
-                  : "hover:bg-[#23232a]/60 text-gray-300"
-              }`}
-              onClick={() => setSelectedThread(thread)}
-            >
-              <span className="truncate font-mono text-base">
-                {thread.label}
-              </span>
-              <button
-                className="text-red-400 ml-2 hover:text-red-300"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteThread(thread.id);
-                }}
-                title="Delete thread"
+        <div className="flex-1 px-2 py-4">
+          <div className="text-xs text-gray-400 mb-2 pl-2">Threads</div>
+          <div className="max-h-[75vh] overflow-y-auto">
+            {threads.map((thread) => (
+              <div
+                key={thread.id}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer mb-1 transition-all duration-150 ${
+                  selectedThread && selectedThread.id === thread.id
+                    ? "bg-[#23232a] text-white border border-[#38bdf8]/30"
+                    : "hover:bg-[#23232a]/60 text-gray-300"
+                }`}
+                onClick={() => setSelectedThread(thread)}
               >
-                🗑️
-              </button>
-            </div>
-          ))}
+                <span className="truncate font-mono text-base">
+                  {thread.label}
+                </span>
+                <button
+                  className="text-red-400 ml-2 hover:text-red-300"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteThread(thread.id);
+                  }}
+                  title="Delete thread"
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="p-4 border-t border-white/10">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-300">{username}</span>
+            <span className="text-sm text-gray-300">@{username}</span>
             <button
               onClick={handleLogout}
               className="text-xs text-red-400 hover:text-red-300 underline"
@@ -445,8 +662,8 @@ export default function ChatPage() {
         <div className="h-16 flex items-center justify-between px-8 border-b border-white/10 bg-[#18181b]">
           <span className="text-lg text-white font-semibold">
             {selectedThread
-              ? `Project: ${selectedThread.label}`
-              : "Select a project"}
+              ? `Thread: ${selectedThread.label}`
+              : "Select a thread"}
           </span>
           {/* Setting icon for drawer */}
           <div>
@@ -477,7 +694,7 @@ export default function ChatPage() {
               </svg>
             </button>
             <button
-              onClick={() => setIsPasswordChangeOpen(true)}
+              onClick={() => setIsSuggestedPrompts(true)}
               className="p-2 rounded-lg hover:bg-[#23232a] transition text-gray-400 hover:text-white"
               title="Documentation"
             >
@@ -617,25 +834,94 @@ export default function ChatPage() {
             {/* Drawer Content */}
             <div className="flex-1 overflow-y-auto p-6">
               {/* Here we will show prompt hints and examples with code buttons */}
-              <div className="flex flex-col gap-4">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Change Password
+                </h3>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-[#23232a] px-4 py-3 text-white placeholder:text-gray-400 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/30"
+                      placeholder="Enter new password"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] px-4 py-3 text-black font-bold shadow hover:shadow-[#38bdf8]/40 transition-all duration-200"
+                  >
+                    Change Password
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      {/* Suggested Prompts */}
+      {isSuggestedPrompts && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            onClick={() => setIsPasswordChangeOpen(false)}
+          ></div>
+
+          {/* Drawer */}
+          <div className="fixed top-0 right-0 h-[100vh] w-96 bg-[#1a1a1a] border-l border-white/10 shadow-2xl z-50 flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <h2 className="text-xl font-bold text-white">Example Prompts</h2>
+              <button
+                onClick={() => setIsSuggestedPrompts(false)}
+                className="p-2 rounded-lg hover:bg-[#23232a] transition text-gray-400 hover:text-white"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6  overflow-y-auto">
+              <div className="space-y-4">
                 {examplePrompts.map((ex, idx) => (
                   <div
                     key={idx}
                     className="flex items-center justify-between p-4 bg-[#23232a] rounded-lg"
                   >
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-gray-400 flex-1 mr-4">
                       Example prompt: <br />
-                      <span className="font-mono">{`"${ex.label}"`}</span>
+                      <span className="font-mono text-white">
+                        `"${ex.label}"`
+                      </span>
                     </p>
                     <button
                       type="button"
-                      className="p-2 rounded-lg hover:bg-[#38bdf8]/30 transition text-xs text-[#38bdf8] underline hover:text-[#0ea5e9]"
+                      className="p-2 rounded-lg hover:bg-[#38bdf8]/30 transition text-xs text-[#38bdf8] underline hover:text-[#0ea5e9] whitespace-nowrap"
                       onClick={() => {
                         setInput(ex.value);
-                        setIsPasswordChangeOpen(false);
+                        setIsSuggestedPrompts(false);
                       }}
                     >
-                      Copy
+                      Copy to input
                     </button>
                   </div>
                 ))}
