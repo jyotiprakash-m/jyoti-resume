@@ -66,6 +66,10 @@ export default function ChatPage() {
 
   const [newPassword, setNewPassword] = useState("");
 
+  // Metadata modal states
+  const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+  const [selectedMetadata, setSelectedMetadata] = useState<any>(null);
+
   // Example prompts as a JSON array
   const examplePrompts = [
     {
@@ -318,11 +322,31 @@ export default function ChatPage() {
         body: formData,
       });
       const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: input },
-        { role: "ai", content: data.agent_response || "No response" },
-      ]);
+      // setMessages((prev) => [
+      //   ...prev,
+      //   { role: "human", content: input },
+      //   { role: "ai", content: data.agent_response || "No response" },
+      // ]);
+
+      // Refetch messages to get updated conversation
+      fetch(
+        `${API_URL}/agent/thread/${username}/${selectedThread?.label}/messages`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          setMessages(
+            (data.messages || []).map((msg: any) => ({
+              role: msg.type || msg.role || "ai",
+              content: msg.content,
+              response_metadata: msg.response_metadata || {},
+              tool_calls: msg.tool_calls || [],
+            }))
+          );
+        })
+        .catch((err) => {
+          console.error("Failed to fetch messages:", err);
+        });
+
       setInput("");
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -771,7 +795,7 @@ export default function ChatPage() {
                   }`}
                 >
                   <div
-                    className={`rounded-xl px-5 py-3 max-w-[70%] font-sans text-base shadow-lg whitespace-pre-line ${
+                    className={`rounded-xl px-5 py-3 max-w-[70vw] font-sans text-base shadow-lg whitespace-pre-line ${
                       msg.role === "human"
                         ? "bg-[#23232a] text-white border border-[#38bdf8]/30"
                         : "bg-[#18181b] text-gray-100 border border-white/10"
@@ -796,17 +820,8 @@ export default function ChatPage() {
                         title="Show metadata"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Toggle metadata display for this message
-                          setMessages((prev) =>
-                            prev.map((m, i) =>
-                              i === idx
-                                ? {
-                                    ...m,
-                                    _showMeta: !m._showMeta,
-                                  }
-                                : m
-                            )
-                          );
+                          setSelectedMetadata(msg);
+                          setIsMetadataModalOpen(true);
                         }}
                       >
                         <svg
@@ -825,22 +840,6 @@ export default function ChatPage() {
                           />
                         </svg>
                       </button>
-                      {/* Show metadata if toggled */}
-                      {msg._showMeta && (
-                        <div className="mt-2 text-xs text-gray-400 bg-[#23232a] rounded p-2 max-w-xs overflow-x-auto">
-                          <pre className="whitespace-pre-wrap break-all">
-                            {JSON.stringify(msg.response_metadata, null, 2)}
-                          </pre>
-                          {msg?.tool_calls && msg.tool_calls?.length > 0 && (
-                            <>
-                              <p>Tools:</p>
-                              <pre className="whitespace-pre-wrap break-all">
-                                {JSON.stringify(msg.tool_calls, null, 2)}
-                              </pre>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1030,6 +1029,82 @@ export default function ChatPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Metadata Modal */}
+      {isMetadataModalOpen && selectedMetadata && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            onClick={() => setIsMetadataModalOpen(false)}
+          ></div>
+
+          {/* Modal */}
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl z-50">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <h2 className="text-xl font-bold text-white">Message Metadata</h2>
+              <button
+                onClick={() => setIsMetadataModalOpen(false)}
+                className="p-2 rounded-lg hover:bg-[#23232a] transition text-gray-400 hover:text-white"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 max-h-96 overflow-y-auto">
+              <div className="space-y-6">
+                {/* Response Metadata */}
+                {selectedMetadata.response_metadata && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-3">
+                      Response Metadata
+                    </h3>
+                    <div className="bg-[#23232a] rounded-lg p-4 overflow-x-auto">
+                      <pre className="text-sm text-gray-300 whitespace-pre-wrap break-all">
+                        {JSON.stringify(
+                          selectedMetadata.response_metadata,
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tool Calls */}
+                {selectedMetadata.tool_calls &&
+                  selectedMetadata.tool_calls.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-3">
+                        Tool Calls
+                      </h3>
+                      <div className="bg-[#23232a] rounded-lg p-4 overflow-x-auto">
+                        <pre className="text-sm text-gray-300 whitespace-pre-wrap break-all">
+                          {JSON.stringify(selectedMetadata.tool_calls, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
