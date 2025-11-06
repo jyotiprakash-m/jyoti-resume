@@ -89,7 +89,8 @@ export default function AgentChatPage(): React.ReactElement {
         <div className="flex-1 px-8 py-6 overflow-y-auto min-h-96">
           {messages.length === 0 && (
             <div className="text-center text-gray-500 mt-16">
-              Start the conversation!
+              Start the conversation! . You can get information related to
+              supply chain database by the agent.
             </div>
           )}
           {messages.map((message, index) => (
