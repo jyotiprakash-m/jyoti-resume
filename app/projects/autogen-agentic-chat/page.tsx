@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type Message = {
   role: "user" | "agent";
@@ -78,13 +79,34 @@ export default function AgentChatPage(): React.ReactElement {
   return (
     <main className="min-h-screen bg-linear-to-br from-[#0a0a0a] via-[#111111] to-[#1a1a1a] py-12 px-4 flex flex-col items-center">
       <section className="w-full max-w-5xl flex h-[90vh] max-h-[95vh] flex-col gap-0 rounded-2xl border border-white/10 bg-black/40 shadow-2xl backdrop-blur-xl">
-        <header className="px-8 py-6 border-b border-white/10 flex items-center gap-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-gray-400">
-            Agent Chat
-          </span>
-          <h1 className="text-2xl md:text-3xl font-bold bg-linear-to-r from-[#38bdf8] via-[#0ea5e9] to-[#06b6d4] bg-clip-text text-transparent">
-            Supply Chain Agent
-          </h1>
+        <header className="px-8 py-6 border-b border-white/10 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-gray-400">
+              Agent Chat
+            </span>
+            <h1 className="text-2xl md:text-3xl font-bold bg-linear-to-r from-[#38bdf8] via-[#0ea5e9] to-[#06b6d4] bg-clip-text text-transparent">
+              Supply Chain Agent
+            </h1>
+          </div>
+          <Link
+            href="/projects/autogen-agentic-chat/supplychain"
+            className="p-3 rounded-xl bg-[#23232a] hover:bg-[#38bdf8]/15 transition-colors duration-200 text-[#38bdf8] shadow border border-white/10"
+            title="Open Supply Chain SQL tools"
+          >
+            <span className="sr-only">Open Supply Chain SQL tools</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.8}
+            >
+              <ellipse cx="12" cy="6" rx="7" ry="3" />
+              <path d="M5 6v6c0 1.657 3.134 3 7 3s7-1.343 7-3V6" />
+              <path d="M5 12v6c0 1.657 3.134 3 7 3s7-1.343 7-3v-6" />
+            </svg>
+          </Link>
         </header>
         <div className="flex-1 px-8 py-6 overflow-y-auto min-h-96">
           {messages.length === 0 && (
