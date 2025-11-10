@@ -59,7 +59,7 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
           const transcript = event.results[0][0].transcript;
           setTranscription(transcript);
           onTranscription?.(transcript);
-          processTextCommand(transcript);
+          processTextCommand(transcript, true); // Pass flag to indicate this is from speech
         };
 
         recognitionRef.current.onerror = (event) => {
@@ -183,9 +183,16 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
   );
 
   const processTextCommand = useCallback(
-    async (text: string) => {
+    async (text: string, fromSpeech = false) => {
       setIsProcessing(true);
       setError(null);
+
+      // Call onTranscription for text input to add user message to conversation
+      // Skip if this is from speech recognition (already called in onresult)
+      if (!fromSpeech) {
+        setTranscription(text);
+        onTranscription?.(text);
+      }
 
       try {
         const response = await fetch(`${apiBaseUrl}/assistant/text-command`, {
@@ -224,7 +231,14 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
         setIsProcessing(false);
       }
     },
-    [apiBaseUrl, conversationId, autoPlayResponse, onResponse, onError]
+    [
+      apiBaseUrl,
+      conversationId,
+      autoPlayResponse,
+      onTranscription,
+      onResponse,
+      onError,
+    ]
   );
 
   const playAudioResponse = useCallback(
