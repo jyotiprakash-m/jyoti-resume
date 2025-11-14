@@ -286,7 +286,9 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
             if (errorBody?.message) {
               errorMessage = `${errorMessage} - ${errorBody.message}`;
             } else if (errorBody?.detail) {
-              errorMessage = `${errorMessage} - ${JSON.stringify(errorBody.detail)}`;
+              errorMessage = `${errorMessage} - ${JSON.stringify(
+                errorBody.detail
+              )}`;
             }
           } catch (parseErr) {
             console.error("Failed to parse error response", parseErr);
@@ -311,7 +313,7 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
         setError(errorMsg);
         onError?.(errorMsg);
       } finally {
-  setIsProcessing(false);
+        setIsProcessing(false);
       }
     },
     [
@@ -327,10 +329,10 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
   );
 
   const clearConversation = useCallback(() => {
-  setConversationId(null);
-  setTranscription("");
-  setResponse("");
-  setError(null);
+    setConversationId(null);
+    setTranscription("");
+    setResponse("");
+    setError(null);
   }, []);
 
   const speakText = useCallback((text: string) => {
@@ -362,13 +364,13 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
   }, []);
 
   return {
-  // State
-  isListening,
-  isProcessing,
-  transcription,
-  response,
-  conversationId,
-  error,
+    // State
+    isListening,
+    isProcessing,
+    transcription,
+    response,
+    conversationId,
+    error,
 
     // Actions
     startListening,

@@ -79,7 +79,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     onTranscription,
     onResponse,
     onError: (error) => console.error("Voice Assistant Error:", error),
-  // streamByDefault removed
+    // streamByDefault removed
   });
 
   const handleClearConversation = () => {
@@ -109,7 +109,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (textInput.trim()) {
-  processTextCommand(textInput, false);
+      processTextCommand(textInput, false);
       setTextInput("");
     }
   };
@@ -242,7 +242,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               <User className="w-5 h-5" />
             </button>
           )}
-
 
           <button
             onClick={() => setShowTextInput(!showTextInput)}
@@ -464,7 +463,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             </div>
           </div>
         ))}
-
 
         {/* Processing indicator */}
         {isProcessing && (
