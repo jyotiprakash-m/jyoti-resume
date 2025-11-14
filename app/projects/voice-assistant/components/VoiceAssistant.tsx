@@ -1,7 +1,7 @@
 // components/VoiceAssistant.tsx
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Mic,
   MicOff,
@@ -11,6 +11,9 @@ import {
   Trash2,
   Copy,
   Pause,
+  User,
+  Clock,
+  LogOut,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
@@ -22,12 +25,26 @@ interface ConversationItem {
   metadata?: any;
 }
 
+interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  status: string;
+  created_at?: string;
+  last_active?: string;
+}
+
 interface VoiceAssistantProps {
   className?: string;
   conversation?: ConversationItem[];
   onTranscription?: (text: string) => void;
   onResponse?: (response: any) => void;
   onClearConversation?: () => void;
+  userProfile?: UserProfile | null;
+  isUserLoading?: boolean;
+  userError?: string | null;
+  onLogout?: () => void;
 }
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
@@ -36,9 +53,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   onTranscription,
   onResponse,
   onClearConversation,
+  userProfile,
+  isUserLoading = false,
+  userError,
+  onLogout,
 }) => {
   const [textInput, setTextInput] = useState("");
   const [showTextInput, setShowTextInput] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -132,8 +154,43 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return "bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] hover:shadow-[#38bdf8]/40";
   };
 
+  const handleLogoutClick = () => {
+    setShowProfileModal(false);
+    onLogout?.();
+  };
+
+  const lastActiveDisplay = useMemo(() => {
+    if (!userProfile?.last_active) return null;
+    const parsed = new Date(userProfile.last_active);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toLocaleString();
+  }, [userProfile?.last_active]);
+
+  const joinedDisplay = useMemo(() => {
+    if (!userProfile?.created_at) return null;
+    const parsed = new Date(userProfile.created_at);
+    if (Number.isNaN(parsed.getTime())) return userProfile.created_at;
+    return parsed.toLocaleString();
+  }, [userProfile?.created_at]);
+
+  const statusClasses = useMemo(() => {
+    if (!userProfile?.status) {
+      return "bg-white/5 border-white/10 text-gray-300";
+    }
+    const normalized = userProfile.status.toLowerCase();
+    if (normalized === "active") {
+      return "bg-emerald-500/10 border-emerald-400/40 text-emerald-300";
+    }
+    if (normalized === "inactive" || normalized === "disabled") {
+      return "bg-rose-500/10 border-rose-400/40 text-rose-300";
+    }
+    return "bg-white/5 border-white/10 text-gray-300";
+  }, [userProfile?.status]);
+
   return (
-    <div className={`flex flex-col h-screen max-h-screen ${className}`}>
+    <div
+      className={`relative flex flex-col h-screen max-h-screen ${className}`}
+    >
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between p-6 border-b border-white/10 bg-[#18181b]">
         <div className="flex items-center gap-4">
@@ -143,10 +200,48 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           <div>
             <h1 className="text-xl font-bold text-white">Voice Assistant</h1>
             <p className="text-sm text-gray-400">{getStatusText()}</p>
+            {isUserLoading && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Loading your profile…</span>
+              </div>
+            )}
+            {!isUserLoading && userProfile && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-[#38bdf8]" />
+                  {userProfile.full_name || userProfile.username}
+                </span>
+                {lastActiveDisplay && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-[#38bdf8]" />
+                    Last active {lastActiveDisplay}
+                  </span>
+                )}
+                <span
+                  className={`flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide ${statusClasses}`}
+                >
+                  {userProfile.status}
+                </span>
+              </div>
+            )}
+            {!isUserLoading && userError && (
+              <div className="mt-2 text-xs text-rose-300">{userError}</div>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {!isUserLoading && userProfile && (
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="p-2 rounded-lg bg-[#23232a] text-gray-400 hover:text-[#38bdf8] hover:bg-[#38bdf8]/10 transition-colors"
+              title="View profile details"
+            >
+              <User className="w-5 h-5" />
+            </button>
+          )}
+
           <button
             onClick={() => setShowTextInput(!showTextInput)}
             className={`p-2 rounded-lg transition-colors ${
@@ -158,7 +253,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           >
             <MessageSquare className="w-5 h-5" />
           </button>
-
           <button
             onClick={handleClearConversation}
             className="p-2 rounded-lg bg-[#23232a] text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
@@ -166,6 +260,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           >
             <Trash2 className="w-5 h-5" />
           </button>
+          {onLogout && (
+            <button
+              onClick={handleLogoutClick}
+              className="p-2 rounded-lg bg-[#23232a] text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -434,6 +537,75 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           </div>
         )}
       </div>
+
+      {showProfileModal && userProfile ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#18181b] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-white">
+                  {userProfile?.full_name || userProfile?.username || "Profile"}
+                </h2>
+                <p className="text-sm text-gray-400">Account details</p>
+              </div>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-full bg-[#23232a] px-3 py-1 text-sm text-gray-400 hover:text-white transition"
+              >
+                X
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+                <span className="text-sm text-gray-400">Username</span>
+                <span className="text-sm font-medium text-white">
+                  {userProfile?.username ?? "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+                <span className="text-sm text-gray-400">Email</span>
+                <span className="text-sm font-medium text-white">
+                  {userProfile?.email ?? "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+                <span className="text-sm text-gray-400">Status</span>
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wide rounded-full border px-2 py-1 ${statusClasses}`}
+                >
+                  {userProfile?.status ?? "unknown"}
+                </span>
+              </div>
+              {userProfile?.created_at && (
+                <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+                  <span className="text-sm text-gray-400">Joined</span>
+                  <span className="text-sm font-medium text-white">
+                    {joinedDisplay ?? userProfile.created_at}
+                  </span>
+                </div>
+              )}
+              {userProfile?.last_active && (
+                <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+                  <span className="text-sm text-gray-400">Last Active</span>
+                  <span className="text-sm font-medium text-white">
+                    {lastActiveDisplay ?? userProfile.last_active}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-xl border border-white/10 px-5 py-2 text-sm text-gray-300 hover:text-white hover:border-[#38bdf8] transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
