@@ -20,15 +20,18 @@ interface UseVoiceAssistantOptions {
   onTranscription?: (text: string) => void;
   onResponse?: (response: VoiceAssistantResponse) => void;
   onError?: (error: string) => void;
+  streamByDefault?: boolean;
 }
 
 export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
+  const LOCAL_STORAGE_KEY = "voice-assistant:user-id";
   const {
     apiBaseUrl = "http://localhost:9090",
     autoPlayResponse = true,
     onTranscription,
     onResponse,
     onError,
+    streamByDefault = true,
   } = options;
 
   const [isListening, setIsListening] = useState(false);
@@ -129,6 +132,51 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
     }
   }, [isListening]);
 
+  const playAudioResponse = useCallback(
+    (audioData: string) => {
+      try {
+        if (audioData && audioData.startsWith("data:audio/")) {
+          const audio = new Audio(audioData);
+          audio.play().catch((e) => {
+            console.error("Error playing audio:", e);
+            if (response && "speechSynthesis" in window) {
+              const utterance = new SpeechSynthesisUtterance(response);
+              utterance.rate = 0.8;
+              utterance.pitch = 1;
+              window.speechSynthesis.speak(utterance);
+            }
+          });
+        } else if (audioData && audioData.length > 0) {
+          const audioUrl = `data:audio/mp3;base64,${audioData}`;
+          const audio = new Audio(audioUrl);
+          audio.play().catch((e) => {
+            console.error("Error playing base64 audio:", e);
+            if (response && "speechSynthesis" in window) {
+              const utterance = new SpeechSynthesisUtterance(response);
+              utterance.rate = 0.8;
+              utterance.pitch = 1;
+              window.speechSynthesis.speak(utterance);
+            }
+          });
+        } else if (response && "speechSynthesis" in window) {
+          const utterance = new SpeechSynthesisUtterance(response);
+          utterance.rate = 0.8;
+          utterance.pitch = 1;
+          window.speechSynthesis.speak(utterance);
+        }
+      } catch (err) {
+        console.error("Error creating audio element:", err);
+        if (response && "speechSynthesis" in window) {
+          const utterance = new SpeechSynthesisUtterance(response);
+          utterance.rate = 0.8;
+          utterance.pitch = 1;
+          window.speechSynthesis.speak(utterance);
+        }
+      }
+    },
+    [response]
+  );
+
   const processVoiceCommand = useCallback(
     async (audioBlob: Blob) => {
       setIsProcessing(true);
@@ -139,6 +187,12 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
         formData.append("file", audioBlob, "audio.mp3");
         if (conversationId) {
           formData.append("conversation_id", conversationId);
+        }
+        if (typeof window !== "undefined") {
+          const storedUserId = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (storedUserId) {
+            formData.append("user_id", storedUserId);
+          }
         }
 
         const response = await fetch(`${apiBaseUrl}/assistant/process-voice`, {
@@ -179,36 +233,66 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
       onTranscription,
       onResponse,
       onError,
+      playAudioResponse,
     ]
   );
 
   const processTextCommand = useCallback(
-    async (text: string, fromSpeech = false) => {
+    async (text: string, fromSpeech = false, forceStream?: boolean) => {
       setIsProcessing(true);
       setError(null);
 
-      // Call onTranscription for text input to add user message to conversation
-      // Skip if this is from speech recognition (already called in onresult)
       if (!fromSpeech) {
         setTranscription(text);
         onTranscription?.(text);
       }
 
+      let storedUserId: string | null = null;
+      if (typeof window !== "undefined") {
+        storedUserId = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      }
+
+      const normalizedText = text.trim();
+
       try {
+        const payload: Record<string, unknown> = {
+          text: normalizedText,
+          user_input: normalizedText,
+          stream: false,
+        };
+
+        if (storedUserId) {
+          payload.user_id = Number.isNaN(Number(storedUserId))
+            ? storedUserId
+            : Number(storedUserId);
+        }
+
+        if (conversationId) {
+          payload.conversation_id = conversationId;
+        }
+
         const response = await fetch(`${apiBaseUrl}/assistant/text-command`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            text,
-            conversation_id: conversationId,
-            stream: false,
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          let errorMessage = `HTTP error! status: ${response.status}`;
+          try {
+            const errorBody = await response.json();
+            if (errorBody?.message) {
+              errorMessage = `${errorMessage} - ${errorBody.message}`;
+            } else if (errorBody?.detail) {
+              errorMessage = `${errorMessage} - ${JSON.stringify(errorBody.detail)}`;
+            }
+          } catch (parseErr) {
+            console.error("Failed to parse error response", parseErr);
+          }
+
+          throw new Error(errorMessage);
         }
 
         const result: VoiceAssistantResponse = await response.json();
@@ -218,7 +302,6 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
 
         onResponse?.(result);
 
-        // Play audio response if available
         if (result.audio_response && autoPlayResponse) {
           playAudioResponse(result.audio_response);
         }
@@ -228,7 +311,7 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
         setError(errorMsg);
         onError?.(errorMsg);
       } finally {
-        setIsProcessing(false);
+  setIsProcessing(false);
       }
     },
     [
@@ -238,67 +321,16 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
       onTranscription,
       onResponse,
       onError,
+      streamByDefault,
+      playAudioResponse,
     ]
   );
 
-  const playAudioResponse = useCallback(
-    (audioData: string) => {
-      try {
-        // Check if audioData is a valid data URL or base64
-        if (audioData && audioData.startsWith("data:audio/")) {
-          const audio = new Audio(audioData);
-          audio.play().catch((e) => {
-            console.error("Error playing audio:", e);
-            // Fallback to speech synthesis
-            if (response && "speechSynthesis" in window) {
-              const utterance = new SpeechSynthesisUtterance(response);
-              utterance.rate = 0.8;
-              utterance.pitch = 1;
-              window.speechSynthesis.speak(utterance);
-            }
-          });
-        } else if (audioData && audioData.length > 0) {
-          // Handle base64 without data URL prefix
-          const audioUrl = `data:audio/mp3;base64,${audioData}`;
-          const audio = new Audio(audioUrl);
-          audio.play().catch((e) => {
-            console.error("Error playing base64 audio:", e);
-            // Fallback to speech synthesis
-            if (response && "speechSynthesis" in window) {
-              const utterance = new SpeechSynthesisUtterance(response);
-              utterance.rate = 0.8;
-              utterance.pitch = 1;
-              window.speechSynthesis.speak(utterance);
-            }
-          });
-        } else {
-          // No audio data, use speech synthesis as fallback
-          if (response && "speechSynthesis" in window) {
-            const utterance = new SpeechSynthesisUtterance(response);
-            utterance.rate = 0.8;
-            utterance.pitch = 1;
-            window.speechSynthesis.speak(utterance);
-          }
-        }
-      } catch (err) {
-        console.error("Error creating audio element:", err);
-        // Fallback to speech synthesis
-        if (response && "speechSynthesis" in window) {
-          const utterance = new SpeechSynthesisUtterance(response);
-          utterance.rate = 0.8;
-          utterance.pitch = 1;
-          window.speechSynthesis.speak(utterance);
-        }
-      }
-    },
-    [response]
-  );
-
   const clearConversation = useCallback(() => {
-    setConversationId(null);
-    setTranscription("");
-    setResponse("");
-    setError(null);
+  setConversationId(null);
+  setTranscription("");
+  setResponse("");
+  setError(null);
   }, []);
 
   const speakText = useCallback((text: string) => {
@@ -330,13 +362,13 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
   }, []);
 
   return {
-    // State
-    isListening,
-    isProcessing,
-    transcription,
-    response,
-    conversationId,
-    error,
+  // State
+  isListening,
+  isProcessing,
+  transcription,
+  response,
+  conversationId,
+  error,
 
     // Actions
     startListening,
