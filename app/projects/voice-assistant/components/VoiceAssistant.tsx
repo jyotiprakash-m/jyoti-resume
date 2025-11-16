@@ -73,13 +73,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     stopListening,
     processTextCommand,
     clearConversation: clearLocalConversation,
-    playAudioResponse,
+
     speakText,
   } = useVoiceAssistant({
     onTranscription,
     onResponse,
     onError: (error) => console.error("Voice Assistant Error:", error),
-    // streamByDefault removed
   });
 
   const handleClearConversation = () => {
@@ -114,11 +113,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
-  const handlePlayAudio = () => {
-    if (response) {
-      speakText(response);
-    }
-  };
+  // Removed handlePlayAudio (audio response is not supported)
 
   const handleCopyText = async (text: string) => {
     try {
@@ -290,24 +285,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl mx-auto">
-              {[
-                "Create a task to review the presentation",
-                "Show me my pending tasks",
-                "Research quantum computing applications",
-                "Find flights from Delhi to Mumbai",
-                "What time is it in India?",
-                "Mark task 3 as completed",
-              ].map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => processTextCommand(suggestion, false)}
-                  disabled={isProcessing}
-                  className="text-left p-4 bg-[#23232a] hover:bg-[#38bdf8]/10 text-gray-300 border border-white/10 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="text-[#38bdf8] text-sm">💡</span>{" "}
-                  {suggestion}
-                </button>
-              ))}
+              <>
+                {[
+                  "Create a task to review the presentation",
+                  "Show me my pending tasks",
+                  "Research quantum computing applications",
+                  "Find flights from Delhi to Mumbai",
+                  "What time is it in India?",
+                  "Mark task 3 as completed",
+                ].map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => processTextCommand(suggestion, false)}
+                    disabled={isProcessing}
+                    className="text-left p-4 bg-[#23232a] hover:bg-[#38bdf8]/10 text-gray-300 border border-white/10 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-[#38bdf8] text-sm">💡</span>{" "}
+                    {suggestion}
+                  </button>
+                ))}
+              </>
             </div>
           </div>
         )}
@@ -363,7 +360,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     <button
                       onClick={() => speakText(item.content)}
                       className="p-1 text-[#38bdf8] hover:text-[#0ea5e9] transition-colors"
-                      title="Play audio response"
+                      title="Read aloud"
                     >
                       <Volume2 className="w-4 h-4" />
                     </button>

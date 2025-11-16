@@ -164,7 +164,7 @@ export default function Home() {
         type: "assistant",
         content: response.response,
         timestamp: new Date(),
-        metadata: response.metadata,
+        // Backend no longer returns metadata; keep messages without it
       },
     ]);
   };

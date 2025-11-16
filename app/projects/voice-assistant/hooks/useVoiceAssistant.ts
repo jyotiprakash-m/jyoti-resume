@@ -5,44 +5,32 @@ import { SpeechRecognition } from "../page";
 interface VoiceAssistantResponse {
   transcription: string;
   response: string;
-  conversation_id: string;
-  action_taken?: string;
-  audio_response?: string;
-  metadata?: {
-    processing_time?: number;
-    agent_used?: string;
-  };
 }
 
 interface UseVoiceAssistantOptions {
   apiBaseUrl?: string;
-  autoPlayResponse?: boolean;
   onTranscription?: (text: string) => void;
   onResponse?: (response: VoiceAssistantResponse) => void;
   onError?: (error: string) => void;
-  streamByDefault?: boolean;
 }
 
 export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
   const LOCAL_STORAGE_KEY = "voice-assistant:user-id";
   const {
     apiBaseUrl = "http://localhost:9090",
-    autoPlayResponse = true,
     onTranscription,
     onResponse,
     onError,
-    streamByDefault = true,
   } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [response, setResponse] = useState("");
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  // Conversation IDs are no longer returned by the backend
   const [error, setError] = useState<string | null>(null);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  // removed media recorder - we don't process raw audio on the backend anymore
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Initialize Web Speech API
@@ -94,151 +82,8 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
     }
   }, [isListening]);
 
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/mp3",
-        });
-        await processVoiceCommand(audioBlob);
-
-        // Stop all tracks to release microphone
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsListening(true);
-      setError(null);
-    } catch (err) {
-      const errorMsg = "Error accessing microphone";
-      setError(errorMsg);
-      onError?.(errorMsg);
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isListening) {
-      mediaRecorderRef.current.stop();
-      setIsListening(false);
-    }
-  }, [isListening]);
-
-  const playAudioResponse = useCallback(
-    (audioData: string) => {
-      try {
-        if (audioData && audioData.startsWith("data:audio/")) {
-          const audio = new Audio(audioData);
-          audio.play().catch((e) => {
-            console.error("Error playing audio:", e);
-            if (response && "speechSynthesis" in window) {
-              const utterance = new SpeechSynthesisUtterance(response);
-              utterance.rate = 0.8;
-              utterance.pitch = 1;
-              window.speechSynthesis.speak(utterance);
-            }
-          });
-        } else if (audioData && audioData.length > 0) {
-          const audioUrl = `data:audio/mp3;base64,${audioData}`;
-          const audio = new Audio(audioUrl);
-          audio.play().catch((e) => {
-            console.error("Error playing base64 audio:", e);
-            if (response && "speechSynthesis" in window) {
-              const utterance = new SpeechSynthesisUtterance(response);
-              utterance.rate = 0.8;
-              utterance.pitch = 1;
-              window.speechSynthesis.speak(utterance);
-            }
-          });
-        } else if (response && "speechSynthesis" in window) {
-          const utterance = new SpeechSynthesisUtterance(response);
-          utterance.rate = 0.8;
-          utterance.pitch = 1;
-          window.speechSynthesis.speak(utterance);
-        }
-      } catch (err) {
-        console.error("Error creating audio element:", err);
-        if (response && "speechSynthesis" in window) {
-          const utterance = new SpeechSynthesisUtterance(response);
-          utterance.rate = 0.8;
-          utterance.pitch = 1;
-          window.speechSynthesis.speak(utterance);
-        }
-      }
-    },
-    [response]
-  );
-
-  const processVoiceCommand = useCallback(
-    async (audioBlob: Blob) => {
-      setIsProcessing(true);
-      setError(null);
-
-      try {
-        const formData = new FormData();
-        formData.append("file", audioBlob, "audio.mp3");
-        if (conversationId) {
-          formData.append("conversation_id", conversationId);
-        }
-        if (typeof window !== "undefined") {
-          const storedUserId = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-          if (storedUserId) {
-            formData.append("user_id", storedUserId);
-          }
-        }
-
-        const response = await fetch(`${apiBaseUrl}/assistant/process-voice`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result: VoiceAssistantResponse = await response.json();
-
-        setTranscription(result.transcription);
-        setResponse(result.response);
-        setConversationId(result.conversation_id);
-
-        onTranscription?.(result.transcription);
-        onResponse?.(result);
-
-        // Play audio response if available and auto-play is enabled
-        if (result.audio_response && autoPlayResponse) {
-          playAudioResponse(result.audio_response);
-        }
-      } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : "Voice processing failed";
-        setError(errorMsg);
-        onError?.(errorMsg);
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [
-      apiBaseUrl,
-      conversationId,
-      autoPlayResponse,
-      onTranscription,
-      onResponse,
-      onError,
-      playAudioResponse,
-    ]
-  );
-
   const processTextCommand = useCallback(
-    async (text: string, fromSpeech = false, forceStream?: boolean) => {
+    async (text: string, fromSpeech = false) => {
       setIsProcessing(true);
       setError(null);
 
@@ -255,28 +100,18 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
       const normalizedText = text.trim();
 
       try {
-        const payload: Record<string, unknown> = {
-          text: normalizedText,
-          user_input: normalizedText,
-          stream: false,
-        };
+        const formBody = new URLSearchParams();
+        formBody.append("prompt", normalizedText);
+        formBody.append("context", "");
+        formBody.append("user_id", storedUserId || "0");
 
-        if (storedUserId) {
-          payload.user_id = Number.isNaN(Number(storedUserId))
-            ? storedUserId
-            : Number(storedUserId);
-        }
-
-        if (conversationId) {
-          payload.conversation_id = conversationId;
-        }
-
-        const response = await fetch(`${apiBaseUrl}/assistant/text-command`, {
+        const response = await fetch(`${apiBaseUrl}/mcp-basic/query`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+            accept: "application/json",
           },
-          body: JSON.stringify(payload),
+          body: formBody.toString(),
         });
 
         if (!response.ok) {
@@ -293,20 +128,17 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
           } catch (parseErr) {
             console.error("Failed to parse error response", parseErr);
           }
-
           throw new Error(errorMessage);
         }
 
-        const result: VoiceAssistantResponse = await response.json();
+        const result = await response.json();
+        const mapped: VoiceAssistantResponse = {
+          transcription: normalizedText,
+          response: result.result ?? "",
+        };
 
-        setResponse(result.response);
-        setConversationId(result.conversation_id);
-
-        onResponse?.(result);
-
-        if (result.audio_response && autoPlayResponse) {
-          playAudioResponse(result.audio_response);
-        }
+        setResponse(mapped.response);
+        onResponse?.(mapped as any);
       } catch (err) {
         const errorMsg =
           err instanceof Error ? err.message : "Text processing failed";
@@ -316,20 +148,10 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
         setIsProcessing(false);
       }
     },
-    [
-      apiBaseUrl,
-      conversationId,
-      autoPlayResponse,
-      onTranscription,
-      onResponse,
-      onError,
-      streamByDefault,
-      playAudioResponse,
-    ]
+    [apiBaseUrl, onTranscription, onResponse, onError]
   );
 
   const clearConversation = useCallback(() => {
-    setConversationId(null);
     setTranscription("");
     setResponse("");
     setError(null);
@@ -369,17 +191,14 @@ export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
     isProcessing,
     transcription,
     response,
-    conversationId,
     error,
 
     // Actions
     startListening,
     stopListening,
-    startRecording,
-    stopRecording,
     processTextCommand,
     clearConversation,
-    playAudioResponse,
+
     speakText,
   };
 };
