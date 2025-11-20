@@ -13,6 +13,7 @@ import {
   Mic,
   Square,
   Volume2,
+  Pause,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
@@ -54,6 +55,7 @@ export default function PersonaChatPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [currentPlayingText, setCurrentPlayingText] = useState<string | null>(null);
 
 
   // Auto-scroll to bottom when new messages arrive
@@ -204,6 +206,7 @@ export default function PersonaChatPage() {
       }
 
       setIsPlaying(true);
+      setCurrentPlayingText(text);
 
       const response = await fetch("/api/persona/tts", {
         method: "POST",
@@ -243,6 +246,7 @@ export default function PersonaChatPage() {
           setAudioUrl(null);
         } catch {}
         audioRef.current = null;
+        setCurrentPlayingText(null);
       };
 
       audio.addEventListener('error', onError, { once: true });
@@ -278,9 +282,40 @@ export default function PersonaChatPage() {
           setAudioUrl(null);
         } catch {}
         audioRef.current = null;
+        setCurrentPlayingText(null);
       };
     } catch (err) {
       console.error('TTS playback error:', err);
+      setIsPlaying(false);
+    }
+  };
+
+  // Toggle playback: start if no audio, pause/resume if audio exists
+  const togglePlayback = async (text: string) => {
+    try {
+      // If there's no existing audio, start playback
+      if (!audioRef.current) {
+        await handlePlayResponse(text);
+        return;
+      }
+
+      const audio = audioRef.current;
+      if (audio.paused) {
+        // resume
+        await audio.play().catch((err) => {
+          if (err && err.name === 'AbortError') return;
+          console.error('Audio resume error:', err);
+        });
+        setIsPlaying(true);
+        setCurrentPlayingText(text);
+      } else {
+        // pause
+        audio.pause();
+        setIsPlaying(false);
+        setCurrentPlayingText(null);
+      }
+    } catch (err) {
+      console.error('Toggle playback error:', err);
       setIsPlaying(false);
     }
   };
@@ -594,26 +629,32 @@ export default function PersonaChatPage() {
                   </div>
                   {message.type === "assistant" && (
                     <div>
-                      <button
-                        onClick={() => handlePlayResponse(message.content)}
-                        disabled={isPlaying}
-                        className="p-1 text-[#38bdf8] hover:text-[#0ea5e9] transition-colors disabled:opacity-50"
-                        title="Play response"
-                      >
-                        {isPlaying ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => togglePlayback(message.content)}
+                          className="p-1 text-[#38bdf8] hover:text-[#0ea5e9] transition-colors"
+                          title={isPlaying ? "Pause" : "Play response"}
+                        >
+                          {currentPlayingText === message.content && isPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Volume2 className="w-4 h-4" />
+                          )}
+                        </button>
+
+                        {/* Waveform visual for the currently playing message */}
+                        {currentPlayingText === message.content && isPlaying && (
                           <div className="flex items-end gap-1 h-4">
                             <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '4px', animationDelay: '0s'}}></span>
-                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '8px', animationDelay: '0.15s'}}></span>
-                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '12px', animationDelay: '0.3s'}}></span>
-                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '16px', animationDelay: '0.45s'}}></span>
-                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '12px', animationDelay: '0.6s'}}></span>
-                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '8px', animationDelay: '0.75s'}}></span>
-                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '4px', animationDelay: '0.9s'}}></span>
+                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '8px', animationDelay: '0.12s'}}></span>
+                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '12px', animationDelay: '0.24s'}}></span>
+                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '16px', animationDelay: '0.36s'}}></span>
+                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '12px', animationDelay: '0.48s'}}></span>
+                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '8px', animationDelay: '0.6s'}}></span>
+                            <span className="w-0.5 bg-[#38bdf8] rounded-sm animate-[wave_1.5s_ease-in-out_infinite]" style={{height: '4px', animationDelay: '0.72s'}}></span>
                           </div>
-                        ) : (
-                          <Volume2 className="w-4 h-4" />
                         )}
-                      </button>
+                      </div>
                       <button
                         onClick={() => handleCopyText(message.content)}
                         className="p-1 text-[#38bdf8] hover:text-[#0ea5e9] transition-colors"
