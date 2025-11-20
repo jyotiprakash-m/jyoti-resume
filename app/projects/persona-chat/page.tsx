@@ -293,12 +293,34 @@ export default function PersonaChatPage() {
   // Toggle playback: start if no audio, pause/resume if audio exists
   const togglePlayback = async (text: string) => {
     try {
-      // If there's no existing audio, start playback
+      // If there's no existing audio, request and start playback
       if (!audioRef.current) {
         await handlePlayResponse(text);
         return;
       }
 
+      // If a different message is selected while another is loaded/playing,
+      // stop the previous audio, clean up and fetch/play the new TTS.
+      if (currentPlayingText !== text) {
+        try {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        } catch {}
+        audioRef.current = null;
+        try {
+          if (audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            setAudioUrl(null);
+          }
+        } catch {}
+        setIsPlaying(false);
+        setCurrentPlayingText(null);
+        // Now request/play the new audio
+        await handlePlayResponse(text);
+        return;
+      }
+
+      // Same message: toggle pause/resume
       const audio = audioRef.current;
       if (audio.paused) {
         // resume
