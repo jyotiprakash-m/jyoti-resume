@@ -53,6 +53,8 @@ export default function PersonaChatPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -68,9 +70,19 @@ export default function PersonaChatPage() {
     const savedSystemMessage = localStorage.getItem("personaSystemMessage");
     if (savedSystemMessage) {
       setSystemMessage(savedSystemMessage);
+    }else{
+      setShowSettings(true);
     }
   }, []);
 
+  // Ensure modal visibility follows the systemMessage state
+  useEffect(() => {
+    if (!systemMessage) {
+      setShowSettings(true);
+    } else {
+      setShowSettings(false);
+    }
+  }, [systemMessage]);
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || isProcessing) return;
@@ -165,60 +177,114 @@ export default function PersonaChatPage() {
     mediaRecorderRef.current?.stop();
   };
 
+  // Close settings modal but ensure a persona (systemMessage) exists
+  const handleCloseSettings = () => {
+    if (!systemMessage) {
+      // Keep the modal open and prompt the user to apply a persona first
+      // We keep UX simple: show an alert and ensure modal remains visible
+      alert("Please configure and apply a persona before closing settings.");
+      setShowSettings(true);
+      return;
+    }
+    setShowSettings(false);
+  };
+
   // Play assistant response (TTS)
   const handlePlayResponse = async (text: string) => {
-    setIsPlaying(true);
-    const response = await fetch("/api/persona/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const audioBlob = await response.blob();
-    const url = URL.createObjectURL(audioBlob);
-    setAudioUrl(url);
-    const audio = new Audio(url);
-    audio.onended = () => {
+    try {
+      // Stop any currently playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+        setAudioUrl(null);
+      }
+
+      setIsPlaying(true);
+
+      const response = await fetch("/api/persona/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        console.error('TTS request failed', response.status, await response.text());
+        setIsPlaying(false);
+        return;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const audioBlob = await response.blob();
+
+      if (!contentType.startsWith('audio') && audioBlob.size === 0) {
+        console.error('TTS returned non-audio or empty response', contentType, audioBlob.size);
+        setIsPlaying(false);
+        return;
+      }
+
+      const url = URL.createObjectURL(audioBlob);
+      setAudioUrl(url);
+
+      const audio = new Audio();
+      audioRef.current = audio;
+      audio.src = url;
+      audio.preload = 'auto';
+
+      // Error handler for loading issues
+      const onError = (e: any) => {
+        console.error('Audio load error:', e);
+        setIsPlaying(false);
+        try {
+          URL.revokeObjectURL(url);
+          setAudioUrl(null);
+        } catch {}
+        audioRef.current = null;
+      };
+
+      audio.addEventListener('error', onError, { once: true });
+
+      // Play when ready; use canplaythrough when available
+      const playAudio = () => {
+        audio.play().catch((err) => {
+          if (err && err.name === 'AbortError') {
+            // expected when interrupted
+            return;
+          }
+          console.error('Audio play error:', err);
+          setIsPlaying(false);
+        });
+      };
+
+      // If already buffered enough, play immediately
+      if (audio.readyState >= 4) {
+        playAudio();
+      } else {
+        audio.addEventListener('canplaythrough', () => playAudio(), { once: true });
+        // trigger load and provide a short fallback
+        audio.load();
+        setTimeout(() => {
+          if (audioRef.current) playAudio();
+        }, 1500);
+      }
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        try {
+          URL.revokeObjectURL(url);
+          setAudioUrl(null);
+        } catch {}
+        audioRef.current = null;
+      };
+    } catch (err) {
+      console.error('TTS playback error:', err);
       setIsPlaying(false);
-      URL.revokeObjectURL(url);
-      setAudioUrl(null);
-    };
-    audio.play();
+    }
   };
 
-  const loadDoctorPersona = () => {
-    setFormData({
-      role: "Medical Doctor specializing in General Practice and Patient Care",
-      tone: "Compassionate, Professional, Reassuring, and Empathetic",
-      style: "Clear and patient-friendly explanations, avoids excessive medical jargon, uses analogies when helpful, provides structured advice",
-      responsibilities: `- Provide accurate medical information and health guidance
-- Explain medical conditions, symptoms, and treatments in understandable terms
-- Offer preliminary advice while emphasizing the importance of professional consultation
-- Address patient concerns with empathy and understanding
-- Recommend appropriate next steps for medical care
-- Explain medication usage, side effects, and precautions
-- Provide lifestyle and preventive health recommendations`,
-      rules: `- Always prioritize patient safety and well-being
-- Provide evidence-based medical information
-- Be thorough yet concise in explanations
-- Show empathy and understanding for patient concerns
-- Encourage follow-up with healthcare professionals when necessary
-- Maintain patient confidentiality and privacy
-- Use simple language while maintaining medical accuracy
-- Acknowledge limitations and uncertainty when appropriate`,
-      avoid: `- Never provide definitive diagnoses without proper examination
-- Do not prescribe specific medications or dosages
-- Avoid replacing in-person medical consultations
-- Do not dismiss or minimize patient symptoms
-- Never guarantee treatment outcomes
-- Avoid using excessive medical terminology without explanation
-- Do not provide advice outside scope of medical expertise
-- Never suggest delaying emergency medical care`,
-    });
-  };
-
-  useEffect(() => {
-    loadDoctorPersona();
-  }, []);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,7 +384,7 @@ export default function PersonaChatPage() {
                   Persona Configuration
                 </h2>
                 <button
-                  onClick={() => setShowSettings(false)}
+                  onClick={handleCloseSettings}
                   className="p-2 rounded-lg bg-[#23232a] text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -376,7 +442,7 @@ export default function PersonaChatPage() {
                     placeholder="List the main tasks and responsibilities (one per line)"
                     value={formData.responsibilities}
                     onChange={handleFormChange}
-                    rows={4}
+                    rows={3}
                     className="w-full px-4 py-3 border border-white/10 bg-[#23232a] text-white placeholder:text-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/30 focus:border-[#38bdf8] resize-none"
                   />
                 </div>
@@ -390,7 +456,7 @@ export default function PersonaChatPage() {
                     placeholder="Key rules and guidelines the persona must follow"
                     value={formData.rules}
                     onChange={handleFormChange}
-                    rows={3}
+                    rows={2}
                     className="w-full px-4 py-3 border border-white/10 bg-[#23232a] text-white placeholder:text-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/30 focus:border-[#38bdf8] resize-none"
                   />
                 </div>
@@ -404,16 +470,24 @@ export default function PersonaChatPage() {
                     placeholder="What should the persona avoid doing or saying?"
                     value={formData.avoid}
                     onChange={handleFormChange}
-                    rows={3}
+                    rows={2}
                     className="w-full px-4 py-3 border border-white/10 bg-[#23232a] text-white placeholder:text-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38bdf8]/30 focus:border-[#38bdf8] resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full px-6 py-3 bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] hover:shadow-lg hover:shadow-[#38bdf8]/40 text-black font-bold rounded-xl shadow transition-all duration-200"
+                  disabled={isGeneratingPersona}
+                  className="w-full px-6 py-3 bg-linear-to-r from-[#38bdf8] to-[#0ea5e9] hover:shadow-lg hover:shadow-[#38bdf8]/40 text-black font-bold rounded-xl shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Apply Persona Configuration
+                  {isGeneratingPersona ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Generating Persona...
+                    </>
+                  ) : (
+                    "Apply Persona Configuration"
+                  )}
                 </button>
               </form>
             </div>

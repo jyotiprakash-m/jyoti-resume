@@ -5,7 +5,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, voice = "alloy", model = "tts-1" } = await req.json();
+    const { text, voice = "alloy", model = "gpt-4o-mini-tts" } = await req.json();
 
     if (!text) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
