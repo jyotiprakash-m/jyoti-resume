@@ -39,7 +39,7 @@ type Thread = { id: string; label: string };
 
 // API endpoint - update this to your backend URL
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL_CHUNKING || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL_AGENTA || "http://localhost:8002";
 
 export default function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([]);

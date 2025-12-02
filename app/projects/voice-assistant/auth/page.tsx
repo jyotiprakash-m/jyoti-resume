@@ -19,7 +19,7 @@ interface LoginPayload {
 }
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:9090";
+  process.env.NEXT_PUBLIC_API_URL_MCP ?? "http://localhost:9090";
 
 const defaultRegisterState: RegisterPayload = {
   username: "",

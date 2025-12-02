@@ -13,11 +13,13 @@ interface UseVoiceAssistantOptions {
   onResponse?: (response: VoiceAssistantResponse) => void;
   onError?: (error: string) => void;
 }
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL_MCP ?? "http://localhost:9090";
 
 export const useVoiceAssistant = (options: UseVoiceAssistantOptions = {}) => {
   const LOCAL_STORAGE_KEY = "voice-assistant:user-id";
   const {
-    apiBaseUrl = "http://localhost:9090",
+    apiBaseUrl = API_BASE_URL,
     onTranscription,
     onResponse,
     onError,

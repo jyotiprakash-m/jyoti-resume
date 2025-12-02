@@ -16,7 +16,7 @@ type Project = {
 
 // API endpoint - update this to your backend URL
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL_CHUNKING || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL_ENGINEERING || "http://localhost:8001";
 
 export default function ProjectsPage() {
   const router = useRouter();
